@@ -1,0 +1,25 @@
+//
+// Created by goksu on 2/25/20.
+//
+#include "Scene.hpp"
+
+#pragma once
+struct hit_payload
+{
+    float tNear;
+    uint32_t index;
+    Vector2f uv;
+    Object* hit_obj;
+};
+
+class Renderer
+{
+public:
+    void Render(const Scene& scene, int spp, int thread_count);
+
+private:
+};
+
+float CalculateScale(float fov);
+
+Vector3f PixelPosToRay(int x, int y, int width, int height, float scale);
