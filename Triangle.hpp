@@ -59,12 +59,11 @@ public:
 
     Intersection getIntersection(Ray ray, FaceCulling culling) override;
     Bounds3 getBounds() override;
-    void Sample(Intersection &pos, float &pdf){
+    void Sample(Intersection &pos){
         float x = std::sqrt(get_random_float()), y = get_random_float();
         pos.coords = v0 * (1.0f - x) + v1 * (x * (1.0f - y)) + v2 * (x * y);
         pos.normal = this->normal;
         pos.obj = this;
-        pdf = 1.0f / area;
     }
 
     float pdf() override {
@@ -179,8 +178,8 @@ public:
         return intersec;
     }
     
-    void Sample(Intersection &pos, float &pdf){
-        bvh->Sample(pos, pdf);
+    void Sample(Intersection &pos){
+        bvh->Sample(pos);
         pos.emit = m->getEmission();
     }
 

@@ -9,7 +9,7 @@
 #include "Object.hpp"
 #include "BVH.hpp"
 #include "Ray.hpp"
-
+#include "PTVertex.hpp"
 
 inline double sign(double v) {
     return v > 0.0f ? 1.0f : -1.0f;
@@ -34,11 +34,11 @@ public:
     void Add(Object *object) { objects.push_back(object); }
 
     const std::vector<Object*>& get_objects() const { return objects; }
-    Intersection intersect(const Ray& ray, FaceCulling culling = FaceCulling::CullBack) const;
+    PTVertex intersect(const Ray& ray, FaceCulling culling = FaceCulling::CullBack) const;
     BVHAccel *bvh;
     void buildBVH();
-    Vector3f castRay(const Ray &ray, int& outBounces) const;
-    bool shadowCheck(Vector3f lightCoords, Vector3f x) const;
+    bool ShadowCheck(Vector3f lightCoords, Vector3f x, FaceCulling culling = CullBack) const;
+    bool ShadowCheck(const PTVertex& v1, const PTVertex& v2) const;
 
     // creating the scene (adding objects and lights)
     std::vector<Object* > objects;

@@ -6,6 +6,8 @@
 #include "global.hpp"
 #include <chrono>
 #include <sstream>
+#include "SceneRenderingHelper.hpp"
+#include "BDPT.hpp"
 
 template<typename T> 
 T tryParseArg(int argc, char** argv, const char* argName, const T& defaultValue){
@@ -21,18 +23,29 @@ T tryParseArg(int argc, char** argv, const char* argName, const T& defaultValue)
     return defaultValue;
 }
 
+
+void SaveFloatImageToJpg(std::vector<Vector3f> framebuffer, int width, int height, std::string path);
+
+
 // In the main function of the program, we create the scene (create objects and
 // lights) as well as set the options for the render (image width and height,
 // maximum recursion depth, field-of-view, etc.). We then call the render
 // function().
 int main(int argc, char** argv)
 {
-    int spp = tryParseArg(argc, argv, "-spp", 4);
-    int thread = tryParseArg(argc, argv, "-j", 4);
+#ifdef _DEBUG
+    int spp = tryParseArg(argc, argv, "-spp", 1);
+    int thread = tryParseArg(argc, argv, "-j", 1);
+    bool usebdpt = tryParseArg(argc, argv, "-bdpt", 1);
+#else
+    int spp = tryParseArg(argc, argv, "-spp", 1);
+    int thread = tryParseArg(argc, argv, "-j", 8);
+    bool usebdpt = tryParseArg(argc, argv, "-bdpt", 1);
+#endif
     // Change the definition here to change resolution
     Scene scene(784, 784);
     scene.eyePos = Vector3f(278, 278, -800);
-    scene.backgroundColor = Vector3f(0.1f, 0.1f, 0.2f);
+    scene.backgroundColor = 0.0f;
     Material* red = new Material(Dieletric, Vector3f(0.0f));
     red->Kd = Vector3f(0.63f, 0.065f, 0.05f);
     Material* green = new Material(Dieletric, Vector3f(0.0f));
@@ -53,7 +66,7 @@ int main(int argc, char** argv)
     Material* silver = new Material(Metal);
     silver->ior_m = Vector3f(0.041000f, 0.53285f, 0.049317f);
     silver->ior_m_k = Vector3f(4.8025f, 3.4101f, 2.8545f);
-    silver->SetSmoothness(0.9f);
+    silver->SetSmoothness(1.f);
 
     Material* copper = new Material(Metal);
     copper->ior_m = Vector3f(0.211f, 1.2174f, 1.2493);
@@ -70,11 +83,12 @@ int main(int argc, char** argv)
     MeshTriangle left("../models/cornellbox/left.obj", red);
     MeshTriangle right("../models/cornellbox/right.obj", green);
     MeshTriangle light_("../models/cornellbox/light.obj", light);
-
-    Sphere glassBall(
-        Vector3f(270.0f, 278.0f, 200.0f)
-        , 50.0f, mglassBall);
+    MeshTriangle lightOcculuder("../models/cornellbox/lightocculuder.obj", white);
     
+    Sphere glassBall(
+        Vector3f(278.0f, 278.0f, 200.0f)
+        , 50.0f, mglassBall);
+
     scene.Add(&floor);
     scene.Add(&shortbox);
     scene.Add(&tallbox);
@@ -82,6 +96,7 @@ int main(int argc, char** argv)
     scene.Add(&right);
     scene.Add(&light_);
     scene.Add(&glassBall);
+    //scene.Add(&lightOcculuder);
     scene.buildBVH();
 #if _DEBUG
     auto test = refract(Vector3f(-1.0f, 1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);
@@ -93,16 +108,41 @@ int main(int argc, char** argv)
     auto test4 = -(1.5f * Vector3f(-1.0f, -1.0f, 0.0f).normalized() + Vector3f(1.5f, 1.0f, 0.0f).normalized());
 
     int t;
-    Vector3f debugPixel = Vector3f(234, 357, 0);
+    Vector3f debugPixel = Vector3f(81, 87, 0);
     Vector3f debugPixelUV = (debugPixel / Vector3f(scene.width, scene.height, 1.0f) - 0.5f) * 2.0f;
 
     float scale = CalculateScale(scene.fov);
     auto debugRay = PixelPosToRay(debugPixel.x, debugPixel.y, scene.width, scene.height, scale);
-    reset_random(234 + 357 * scene.height);
-    scene.castRay(Ray(scene.eyePos, debugRay), t);
+    reset_random(81 + 87 * scene.height + 1);
+    std::vector<Vector3f> tb(scene.width * scene.height);
+    //BDPT(&scene, Ray(scene.eyePos, debugRay), t, &tb[0]);
+    SaveFloatImageToJpg(tb, scene.width, scene.height, "t.jpg");
+    /*{
+        BDPTPath lightpath(&scene);
+        Intersection l;
+        light_.Sample(l);
+        PTVertex t;
+        t.x = Vector3f(278.0f, 548.7f, 279.5);
+        t.type = PTVertex::Type::Light;
+        t.N = Vector3f(0.0f, -1.0f, 0.0f);
+        t.obj = &light_;
+        lightpath.Append(t, true);
+        auto sphereUpper = scene.intersect(Ray(t.x, t.N));
+        auto sphereDown = scene.intersect(Ray(sphereUpper.x, -sphereUpper.N), FaceCulling::CullFront);
+        auto sphereOut = scene.intersect(Ray(sphereDown.x, sphereDown.N));
+
+        lightpath.Append(sphereUpper, true);
+        lightpath.Append(sphereDown, true);
+        lightpath.Append(sphereOut, true);
+
+        BDPTPath camPath(&scene);
+        camPath.GenerateCameraPath(Ray(scene.eyePos, Vector3f(0.0f, 0.0f, 1.0f)));
+
+        BDPTPath::PathWeight(lightpath, camPath.Sub(1));
+    }*/
 #endif
     Renderer r;
-    r.Render(scene, spp, thread);
+    r.Render(scene, spp, thread, usebdpt);
 
 
     return 0;

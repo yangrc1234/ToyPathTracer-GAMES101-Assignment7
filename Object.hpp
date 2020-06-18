@@ -25,10 +25,11 @@ public:
     virtual Intersection getIntersection(Ray _ray, FaceCulling culling) = 0;
     virtual Bounds3 getBounds()=0;
     virtual float getArea()=0;
-    virtual void Sample(Intersection &pos, float &pdf)=0;
+    virtual void Sample(Intersection &pos)=0;
     bool hasEmit() {
         return m->hasEmission();
     }
+    //virtual Ray sampleLightStart(float* pdf);   //Shoot a ray from the object. used for bdpt.
     virtual float pdf() = 0;
     Material* m;
 };

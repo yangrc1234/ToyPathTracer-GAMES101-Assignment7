@@ -9,6 +9,9 @@
 #include <cmath>
 #include <algorithm>
 
+class alignas(16) Vector3f;
+inline double dotProduct(const Vector3f& a, const Vector3f& b);
+
 class alignas(16) Vector3f {
 public:
     float x, y, z;
@@ -27,6 +30,11 @@ public:
     Vector3f normalized() {
         float n = std::sqrt(x * x + y * y + z * z);
         return Vector3f(x / n, y / n, z / n);
+    }
+
+    Vector3f NormlizeAndGetLengthSqr(float* lengthSqr) {
+        *lengthSqr = dotProduct(*this, *this);
+        return *this/ std::sqrt(*lengthSqr);
     }
 
     Vector3f operator * (const Vector3f& v) const { return Vector3f(x * v.x, y * v.y, z * v.z); }

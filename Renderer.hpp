@@ -15,11 +15,7 @@ struct hit_payload
 class Renderer
 {
 public:
-    void Render(const Scene& scene, int spp, int thread_count);
+    void Render(const Scene& scene, int spp, int thread_count, bool bdpt);
 
 private:
 };
-
-float CalculateScale(float fov);
-
-Vector3f PixelPosToRay(int x, int y, int width, int height, float scale);

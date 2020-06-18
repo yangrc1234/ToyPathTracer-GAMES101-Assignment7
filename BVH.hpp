@@ -64,8 +64,8 @@ public:
 #endif
     }
 
-    void getSample(BVHNodeIndex index, float p, Intersection &pos, float &pdf);
-    void Sample(Intersection &pos, float &pdf);
+    void getSample(BVHNodeIndex index, float p, Intersection &pos);
+    void Sample(Intersection &pos);
 
     BVHNodeIndex allocateNode();
 

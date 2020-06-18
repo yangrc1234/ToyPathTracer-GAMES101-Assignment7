@@ -142,22 +142,20 @@ Intersection BVHAccel::Intersect(const Ray& ray, FaceCulling culling) const
     return insect;
 }
 
-void BVHAccel::getSample(BVHNodeIndex index, float p, Intersection &pos, float &pdf){
+void BVHAccel::getSample(BVHNodeIndex index, float p, Intersection &pos){
     auto& node = GN(index);
 
     if(node.left == BVHNodeNull || node.right == BVHNodeNull){
-        node.object->Sample(pos, pdf);
-        pdf *= node.area;
+        node.object->Sample(pos);
         return;
     }
-    if(p < GN(node.left).area) getSample(node.left, p, pos, pdf);
-    else getSample(node.right, p - GN(node.left).area, pos, pdf);
+    if(p < GN(node.left).area) getSample(node.left, p, pos);
+    else getSample(node.right, p - GN(node.left).area, pos);
 }
 
-void BVHAccel::Sample(Intersection &pos, float &pdf){
+void BVHAccel::Sample(Intersection &pos){
     float p = std::sqrt(get_random_float()) * GN(Root()).area;
-    getSample(Root(), p, pos, pdf);
-    pdf /= GN(Root()).area;
+    getSample(Root(), p, pos);
 }
 
 BVHNodeIndex BVHAccel::allocateNode()

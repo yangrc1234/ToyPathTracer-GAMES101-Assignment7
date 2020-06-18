@@ -8,15 +8,14 @@
 #include <chrono>
 #include <atomic>
 #include <queue>
+#include <future>
 #include "Scene.hpp"
 #include "Renderer.hpp"
-#include <future>
+#include "PathTracer.hpp"
+#include "SceneRenderingHelper.hpp"
+#include "BDPT.hpp"
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-
-inline float deg2rad(const float& deg) { return deg * M_PI / 180.0; }
-
+using Buffer = std::vector<Vector3f>;
 const float EPSILON = 1e-4;
 struct ThreadTask {
     ThreadTask(Vector3f* target, int x, int y) :
@@ -30,48 +29,50 @@ struct ThreadTask {
 const Scene* curScene;
 std::atomic<int> totalRays;
 
-float CalculateScale(float fov) {
-    return tan(deg2rad(fov * 0.5));
-}
-
-Vector3f PixelPosToRay(int xPixel, int yPixel, int width, int height, float scale) {
-    float imageAspectRatio = width / height;
-    float x = (2 * (xPixel + 0.5) / (float)width - 1) *
-        imageAspectRatio * scale;
-    float y = (1 - 2 * (yPixel + 0.5) / (float)height) * scale;
-    return normalize(Vector3f(-x, y, 1));
-}
-
-void FillBufferThread(int threadCount, int threadOffset, int spp, Vector3f* buffer) {
+Buffer FillBufferThread(int threadCount, int threadOffset, int spp, Vector3f* buffer, bool bdpt) {
     float scale = CalculateScale(curScene->fov);
     float imageAspectRatio = curScene->width / (float)curScene->height;
     int pixelCount = curScene->width * curScene->height;
     int threadRayCounter = 0;
+    Buffer emissionBuffer(curScene->width * curScene->height);
     for (size_t i = threadOffset; i < pixelCount; i+= threadCount)
     {
         int xPixel = i % curScene->width;
         int yPixel = i / curScene->width;
-        reset_random((int)i);
+        reset_random((int)i + 1);
         for (int ispp = 0; ispp < spp; ispp++)
         {
             // generate primary ray direction
             Vector3f dir = PixelPosToRay(xPixel, yPixel, curScene->width, curScene->height, scale);
             int bounces;
-            *(buffer + i) += (1.0f / spp) * curScene->castRay(Ray(curScene->eyePos, dir), bounces);
+            if (bdpt)
+                *(buffer + i) += (1.0f / spp) * BDPT(curScene, Ray(curScene->eyePos, dir), bounces, &emissionBuffer[0]);
+            else
+                *(buffer + i) += (1.0f / spp) * PathTrace(curScene, Ray(curScene->eyePos, dir), bounces);
             threadRayCounter += bounces;
         }
         if (threadOffset == 0 && i % 10000 == 0){  //Logging IS performance issue, don't do too much.
             UpdateProgress((float)i / pixelCount);
         }
     }
+    for (int i = 0; i < curScene->width * curScene->height; i++) {
+        emissionBuffer[i] = emissionBuffer[i] * 1.0f / spp;
+    }
     totalRays += threadRayCounter;
+    return emissionBuffer;
 }
 
 // The main render function. This where we iterate over all pixels in the image,
 // generate primary rays and cast these rays into the scene. The content of the
 // framebuffer is saved to a file.
-void Renderer::Render(const Scene& scene, int spp, int thread_count)
+void Renderer::Render(const Scene& scene, int spp, int thread_count, bool bdpt)
 {
+    if (bdpt) {
+        std::cout << "Tracing mode: Bidirectional Ptah Tracing" << std::endl;
+    }
+    else {
+        std::cout << "Tracing mode: Path tracing" << std::endl;
+    }
     auto start = std::chrono::system_clock::now();
     std::vector<Vector3f> framebuffer(scene.width * scene.height);
 
@@ -80,18 +81,38 @@ void Renderer::Render(const Scene& scene, int spp, int thread_count)
     // change the spp value to change sample ammount
     std::cout << "SPP: " << spp << "\n";
 
-    std::vector<std::future<void>> threads;
+    std::vector<std::future<Buffer>> threads;
+    std::vector<Buffer> emissionBuffers;
     for (int iThread = 1; iThread < thread_count; iThread++)
     {
-        auto future = std::async(std::launch::async, FillBufferThread, thread_count, iThread, spp, &framebuffer[0]);
+        auto future = std::async(std::launch::async, FillBufferThread, thread_count, iThread, spp, &framebuffer[0], bdpt);
         threads.push_back(std::move(future));
     }
-    FillBufferThread(thread_count, 0, spp, &framebuffer[0]);
+    emissionBuffers.push_back(FillBufferThread(thread_count, 0, spp, &framebuffer[0], bdpt));
 
     for (size_t i = 0; i < threads.size(); i++)
     {
         threads[i].wait();
     }
+
+    if (bdpt) {
+        //Merge emission buffer.
+        for (size_t i = 0; i < threads.size(); i++)
+        {
+            emissionBuffers.push_back(threads[i].get());
+        }
+
+        std::cout << "Tracing finished, merge emission buffer\n";
+        for (size_t j = 0; j < scene.width * scene.height; j++)
+        {
+            //framebuffer[j] = 0.0f;
+            for (size_t i = 0; i < emissionBuffers.size(); i++)
+            {
+                framebuffer[j] += emissionBuffers[i][j];
+            }
+        }
+    }
+
     std::cout << std::endl;
     auto stop = std::chrono::system_clock::now();
 
@@ -102,28 +123,5 @@ void Renderer::Render(const Scene& scene, int spp, int thread_count)
     std::cout << "Rays: " << totalRays << std::endl;
     std::cout << "Rays Per Second: " << (float)totalRays / 1e3f / std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() << "MRays" << std::endl;
     
-    std::vector<unsigned char> normalizedBuffer;
-    normalizedBuffer.reserve(framebuffer.size() * 3);
-    for (auto i = 0; i < scene.height * scene.width; ++i) {
-        static unsigned char color[3];
-        color[0] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].x), 0.6f));
-        color[1] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].y), 0.6f));
-        color[2] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].z), 0.6f));
-        normalizedBuffer.insert(normalizedBuffer.end(), color, color + 3);
-    }
-
-    stbi_write_jpg("output.jpg", scene.width, scene.height, 3, &normalizedBuffer[0], 100);
-    //stbi_write_png("output.png", scene.width, scene.height, 3, &normalizedBuffer[0], 0);
-    /*
-    // save framebuffer to file
-    FILE* fp = fopen("binary.ppm", "wb");
-    (void)fprintf(fp, "P6\n%d %d\n255\n", scene.width, scene.height);
-    for (auto i = 0; i < scene.height * scene.width; ++i) {
-        static unsigned char color[3];
-        color[0] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].x), 0.6f));
-        color[1] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].y), 0.6f));
-        color[2] = (unsigned char)(255 * std::pow(clamp(0, 1, framebuffer[i].z), 0.6f));
-        fwrite(color, 1, 3, fp);
-    }
-    fclose(fp);    */
+    SaveFloatImageToJpg(framebuffer, scene.width, scene.height, "output.jpg");
 }

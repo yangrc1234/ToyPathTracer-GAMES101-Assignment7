@@ -1,141 +1,6 @@
 #include "Material.hpp"
-
-Vector3f toWorld(const Vector3f& a, const Vector3f& N);
-
-/*Clamp a value to range [0,1]*/
-float saturate(float t) {
-	return std::clamp(t, 0.0f, 1.0f);
-}
-
-/*Power5 of a value*/
-float pow5(float v) {
-	return v * v * v * v * v;
-}
-
-/*GGX Geometry shadow term. */
-float Visibility(float vn, float vh, float roughness) {
-	if (vh * vn <= 0.0f)
-		return 0.0f;
-	float vh2 = vh * vh;
-	float tan2 = (1.0f - vh2) / vh2;
-	return 2.0f / (1 + std::sqrt(1.0f + roughness * roughness * tan2));
-}
-
-/*GGX D term. Indicate given N, H, roughness, how much */
-float GGXTerm(float ndoth, float roughness) {
-	if (ndoth <= 0.0f)
-		return 0.0f;
-	float a2 = roughness * roughness;
-	float d = (ndoth * a2 - ndoth) * ndoth + 1.0f;
-	return a2 / (M_PI * d * d + EPSILON);
-}
-
-/*Given normal and microsurface normal(half direction), calculate probablity of the microsurface.*/
-float GGXHalfPDF(Vector3f n, Vector3f h, float roughness) {
-	return GGXTerm(dotProduct(n, h), roughness) * abs(dotProduct(n, h));
-}
-
-/*Convert smoothness to roughness*/
-float SmoothnessToRoughenss(float smoothness) {
-	return std::max(0.002f, (1.0f - smoothness) * (1.0f - smoothness));
-}
-
-/*
-Given normal and roughness, generate a half dir sample.
-*/
-Vector3f SampleGGXSpecularH(Vector3f N, float roughness) {
-	float d1 = get_random_float(), d2 = get_random_float();
-	float theta = std::atan2(roughness * std::sqrt(d1), std::sqrt(1.0f - d1));
-	float phi = 2.0f * M_PI * d2;
-	Vector3f microNLocal(
-		std::sin(theta) * std::cos(phi),
-		std::sin(theta) * std::sin(phi),
-		std::cos(theta)
-		);
-
-	auto microNWorld = toWorld(microNLocal, N).normalized();
-	
-	return microNWorld;
-}
-
-/*Given N, w_i, w_o and material ior, get ior of the media w_i in, and ior of the media w_o in*/
-void GetInsideOutsideIOR(Vector3f N, Vector3f wi, Vector3f wo, float matIor, float& ior_i, float& ior_o) {
-	float nl = dotProduct(N, wi);
-	float nv = dotProduct(N, wo);
-	//Calculate half dir.
-	if (nl < 0.0f) {
-		ior_i = matIor;
-	}
-	else {
-		ior_i = 1.0f;
-	}
-	if (nv < 0.0f) {
-		ior_o = matIor;
-	}
-	else {
-		ior_o = 1.0f;
-	}
-}
-
-/*
-Given normal, w_i, w_o and material ior, calculate half vector.
-If w_i, w_o is on the same side, (w_i + w_o).normalized().
-Otherwise refraction is considered, and the half direction is calculated according t othe GGX paper.(Which is exactly normal of the plane that refracts the w_i or w_o into one another)*/
-Vector3f GetHalfDir(Vector3f N, Vector3f wi, Vector3f wo, float matIor) {
-
-	float nl = dotProduct(N, wi);
-	float nv = dotProduct(N, wo);
-	if (nl == 0.0f || nv == 0.0f)
-		return 0.0f;
-	Vector3f h;
-	if (nl * nv > 0.0f)      //Reflection.
-	{
-		h = (wi + wo).normalized();
-		if (nv < 0.0f)
-			h = -h;
-	}
-	else {
-		//Calculate half dir.
-		if (nv < 0.0f) {
-			h = -(matIor * wo + wi).normalized();
-		}
-		else {
-			h = -(wo + wi * matIor).normalized();
-		}
-	}
-	return h;
-}
-
-/*
-Given a vector a that is located in local system, transform the local system to world system such that z-axis in local system aligns with world system's one.
-*/
-Vector3f toWorld(const Vector3f& a, const Vector3f& N) {
-	Vector3f tangent = anyPerpendicular(N), bitangent = crossProduct(N, tangent);
-
-	return Vector3f(
-		a.x * tangent.x + a.y * bitangent.x + a.z * N.x,
-		a.x * tangent.y + a.y * bitangent.y + a.z * N.y,
-		a.x * tangent.z + a.y * bitangent.z + a.z * N.z
-		);
-}
-
-/*Draw a sample from diffuse distribution, which is cosine-weighted hemisphere. */
-Vector3f getDiffuseSampleAndPdf(const Vector3f& wo, const Vector3f& N, float& pdf) {
-	//cosine-weighted sampling.
-	float u1 = get_random_float();
-	float r = std::sqrt(u1);
-	float theta = 2 * M_PI * get_random_float();
-	float x = r * cos(theta), y = r * sin(theta);
-
-	Vector3f wi = toWorld(Vector3f(x, y, std::sqrt(1.0f - u1)), N).normalized();
-	pdf = dotProduct(wi, N) / (M_PI);
-	return wi;
-}
-
-/*Given w_o, N, w_i, calculate its probablity under Lambert lighting model.*/
-float getDiffusePdf(const Vector3f& wo, const Vector3f& N, const Vector3f& wi) {
-	return saturate(dotProduct(wi, N)) / (M_PI); //cosine-weighted.
-}
+#include "SampleHelperFunctions.hpp"
+#include "GGX.hpp"
 
 /*
 Given w_i, w_o, N, calculate how much light would be passed per unit solid angle.
@@ -143,7 +8,7 @@ Note that return value is not BSDF, since we combine the cosine-term( dot(normal
 
 The code is just an plain implementation of Walter07. See the paper for why and how.
 */
-Vector3f Material::evalGivenSample(const Vector3f& wo, const Vector3f& wi, const Vector3f& N) {
+Vector3f Material::evalGivenSample(const Vector3f& wo, const Vector3f& wi, const Vector3f& N, bool combineCosineTerm) {
 	float nl = dotProduct(N, wi);
 	float nv = dotProduct(N, wo);
 	if (nl == 0.0f || nv == 0.0f)
@@ -162,11 +27,19 @@ Vector3f Material::evalGivenSample(const Vector3f& wo, const Vector3f& wi, const
 	{
 		Vector3f specular = 0;
 		if (G != 0.0f)
+		{
 			specular = (D * f * G) / (4.0 * abs(nv));       //Original formula is DFG/(4*nv*nl), we combine the cosine term here, so nl canceld out with it.
+			if (!combineCosineTerm) {
+				specular = specular / abs(nl);
+			}
+		}
 
 		Vector3f diffuse = 0;
 		if (this->m_type == Dieletric) {
-			diffuse = this->Kd * (Vector3f::One() - f) / M_PI * saturate(nl);
+			diffuse = this->Kd * (Vector3f::One() - f) / M_PI;
+			if (combineCosineTerm) {
+				diffuse = diffuse * saturate(nl);
+			}
 		}
 
 		return diffuse + specular;
@@ -184,6 +57,10 @@ Vector3f Material::evalGivenSample(const Vector3f& wo, const Vector3f& wi, const
 			ior_i = ior_d; ior_o = 1.0f;
 		}
 		auto partA = abs(vh) * abs(lh) / (abs(nv) /* abs(nl)*/);	//Cancelled out with cosine term.
+		if (!combineCosineTerm) {
+			partA /= abs(nl);
+		}
+
 		auto partB = ior_o * ior_o * (1.0f - f.x) * G * D;
 		if (partA * partB == 0.0f)
 			return 0.0f;
@@ -196,8 +73,8 @@ Vector3f Material::evalGivenSample(const Vector3f& wo, const Vector3f& wi, const
 
 /*
 The GGX microfacet model doesn't include diffuse surface calculation.
-It's possible to create a diffuse material based on Lambert.
-But if we want smooth dieletric(plastic pipe etc.), diffuse is important as well as specular.
+It's possible to create another material dedicated for diffuse, using Lambert.
+But if we want smooth dieletric(plastic pipe etc.), it's combined with diffuse and specular.
 
 To implement such a combined bsdf model, just "combine" diffuse pdf and specular pdf.
 You don't have to really get a pdf formula of it. Here's the simple way.
@@ -225,37 +102,39 @@ So in bsdf sampling, we chose to reflect the ray or refract the ray, based on fr
 */
 
 /*Given sample represented as w_o, n, w_i, calculate probablity of it.*/
-float Material::BSDFSampler::pdf(Vector3f x, Vector3f w_o, Vector3f n, Vector3f w_i) {
+float Material::pdf(Vector3f w_o, Vector3f n, Vector3f w_i) {
 
 	float nv = dotProduct(n, w_o), nl = dotProduct(n, w_i);
+	if (nv == 0.0f || nl == 0.0f)
+		return 0.0f;
 	//Get the fresnel.
-	Vector3f h = GetHalfDir(n, w_i, w_o, mat->ior_d);
-	Vector3f f = mat->fresnel(w_o, h);
+	Vector3f h = GetHalfDir(n, w_i, w_o, ior_d);
+	Vector3f f = fresnel(w_o, h);
 	//Calculate probablity of h.
-	float pdf_h = GGXHalfPDF(n, h, mat->rough);
+	float pdf_h = GGXHalfPDF(n, h, rough);
 
 	float vh = dotProduct(w_o, h);
 	float abs_vh = abs(vh);
 	float lh = dotProduct(w_i, h);
 	float ior_i, ior_o;
-	GetInsideOutsideIOR(n, w_i, w_o, mat->ior_d, ior_i, ior_o);
+	GetInsideOutsideIOR(n, w_i, w_o, ior_d, ior_i, ior_o);
 	if (nv * nl < 0.0f) {
 		//Refraction.
 		float den = (ior_i * lh + ior_o * vh);
-		float jaco = ior_o * ior_o * abs_vh / (den * den);
-		if (mat->m_type != TransmittanceDieletric)
+		float jaco = SafeDivide(ior_o * ior_o * abs_vh, (den * den));
+		if (m_type != TransmittanceDieletric)
 			return 0.0f;
 
 		return pdf_h * (1.0f - f.x) * jaco;
 	}
 	else if (nv * nl > 0.0f) {
 		//Reflection
-		float jaco = 1.0f / (4.0f * abs_vh);
-		auto diffuse = getDiffusePdf(w_o, n, w_i);
-		if (mat->m_type == Metal) {
+		float jaco = SafeDivide(1.0f, (4.0f * abs_vh));
+		auto diffuse = getCosineWeightedPdf( n, w_i);
+		if (m_type == Metal) {
 			return pdf_h * jaco;
 		}
-		else if (mat->m_type == Dieletric) {
+		else if (m_type == Dieletric) {
 			return (diffuse + pdf_h * jaco) * 0.5f;
 		}
 		else {
@@ -268,27 +147,27 @@ float Material::BSDFSampler::pdf(Vector3f x, Vector3f w_o, Vector3f n, Vector3f 
 }
 
 /*Given w_o, n, draw a w_i sample, return it and its pdf*/
-Vector3f Material::BSDFSampler::sample(Vector3f x, Vector3f w_o, Vector3f n, float* pdf) {
-	Vector3f H = SampleGGXSpecularH(n, mat->rough);
+Vector3f Material::sample(Vector3f w_o, Vector3f n, float* pdf) {
+	Vector3f H = SampleGGXSpecularH(n, rough);
 	Vector3f w_i_s = reflect(w_o, H);
-	float pdf_h = GGXHalfPDF(n, H, mat->rough);
+	float pdf_h = GGXHalfPDF(n, H, rough);
 
 	float vn = dotProduct(w_o, n);
 	float nh = dotProduct(n, H);
 	float vh = dotProduct(w_o, H);
 	float abs_vh = abs(vh);
 	float ior_i, ior_o;
-	float jaco_reflect = 1.0f / (4.0f * abs_vh);
-	if (mat->m_type == Metal) {
+	float jaco_reflect = SafeDivide(1.0f, (4.0f * abs_vh));
+	if (m_type == Metal) {
 		*pdf = pdf_h * jaco_reflect;
 		if (vn * dotProduct(w_i_s, n) < 0.0f)
 			*pdf = 0.0f;
 		return w_i_s;
 	}
-	else if (mat->m_type == Dieletric) {
+	else if (m_type == Dieletric) {
 		if (get_random_float() < 0.5f) {
 			//Specular.
-			float pdf_d = getDiffusePdf(w_o, n, w_i_s);
+			float pdf_d = getCosineWeightedPdf(n, w_i_s);
 			*pdf = (pdf_h * jaco_reflect + pdf_d) * 0.5f;
 			if (vn * dotProduct(w_i_s, n) < 0.0f)
 				*pdf = 0.0f;
@@ -297,20 +176,20 @@ Vector3f Material::BSDFSampler::sample(Vector3f x, Vector3f w_o, Vector3f n, flo
 		else {
 			//Diffuse.
 			float pdf_d;
-			Vector3f w_i_d = getDiffuseSampleAndPdf(w_o, n, pdf_d);
+			Vector3f w_i_d = getCosineWeightedSample(n, pdf_d);
 			H = (w_i_d + w_o).normalized();
 			vh = dotProduct(w_o, H);
 			abs_vh = abs(vh);
-			pdf_h = GGXHalfPDF(n, H, mat->rough);
-			jaco_reflect = 1.0f / (4.0f * abs_vh);
+			pdf_h = GGXHalfPDF(n, H, rough);
+			jaco_reflect = SafeDivide(1.0f, (4.0f * abs_vh));
+			*pdf = (pdf_h * jaco_reflect + pdf_d) * 0.5f;
 			if (vn * dotProduct(w_i_d, n) < 0.0f)
-				*pdf = (pdf_h * jaco_reflect + pdf_d) * 0.5f;
-			*pdf = 0.0f;
+				*pdf = 0.0f;
 			return w_i_d;
 		}
 	}
 	else {  //Transmittance dieletric.
-		Vector3f f = mat->fresnel(w_o, H);
+		Vector3f f = fresnel(w_o, H);
 
 		if (get_random_float() < f.x) {
 			//Go reflection.
@@ -320,11 +199,11 @@ Vector3f Material::BSDFSampler::sample(Vector3f x, Vector3f w_o, Vector3f n, flo
 			return w_i_s;
 		}
 		else {
-			Vector3f w_i_refract = refract(w_o, H, mat->ior_d);
-			GetInsideOutsideIOR(n, w_i_refract, w_o, mat->ior_d, ior_i, ior_o);
+			Vector3f w_i_refract = refract(w_o, H, ior_d);
+			GetInsideOutsideIOR(n, w_i_refract, w_o, ior_d, ior_i, ior_o);
 			float lh = dotProduct(w_i_refract, H);
 			float den = (ior_i * lh + ior_o * vh);
-			float jaco_refract = ior_o * ior_o * abs_vh / (den * den);
+			float jaco_refract = SafeDivide(ior_o * ior_o * abs_vh, (den * den));
 			//go Refraction
 			*pdf = pdf_h * (1.0f - f.x) * jaco_refract;
 			if (vn * dotProduct(w_i_refract, n) > 0.0f)
