@@ -273,10 +273,11 @@ BDPTPath::InternalPathVertex  BDPTPath::SampleNextVertex(const Scene* scene, con
 
 Vector3f BDPT(const Scene* scene, const Ray& ray, int& outBounces, Vector3f* emissionBuffer)
 {
+    outBounces = 0;
     auto lightPath = BDPTPath::BDPTPath(scene), camPath = BDPTPath::BDPTPath(scene);
     camPath.GenerateCameraPath(ray);
-
     lightPath.GenerateLightPath(scene->m_emissionObjects[0]);
+    outBounces += camPath.count + lightPath.count;
     Vector3f result;
     for (int iCamPathLength = 1; iCamPathLength <= camPath.count; iCamPathLength++) {
         auto camSub = camPath.Sub(iCamPathLength);
