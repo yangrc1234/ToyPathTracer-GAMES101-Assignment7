@@ -39,7 +39,7 @@ Refractive ball:
 ![](images/Cornell-64-RefractiveBall.jpg)   
 Comparison of path tracing and BDPT:  
 
-| Scene Name | Path Tracing(64spp) | Bi-directional Path Tracing(32spp) |  
+| Scene Name | Path Tracing(64spp) | Bi-directional Path Tracing(16spp) |  
 | --- | --- | --- |  
 | Standard Cornell Box  |   ![](images/Cornell-Standard-PT-64.jpg)          |  ![](images/Cornell-Standard-BDPT-16.jpg)   | 
 | Smooth Dieletric      |   ![](images/Cornell-SmoothDieletric-PT-64.jpg)   |  ![](images/Cornell-SmoothDieletric-BDPT-16.jpg)  |
