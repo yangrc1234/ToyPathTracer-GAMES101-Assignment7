@@ -27,16 +27,6 @@ To start the program after built, type:
 ``` 
 
 ## Images  
-All images are rendered using 64 spps.  
-
-Standard cornell box:  
-
-Adjust material to smooth dieletric:  
-
-Replace the white wall with silver:  
-
-Refractive ball:   
-![](images/Cornell-64-RefractiveBall.jpg)   
 Comparison of path tracing and BDPT:  
 
 | Scene Name | Path Tracing(64spp) | Bi-directional Path Tracing(16spp) |  
@@ -63,5 +53,6 @@ During implementing I came across many problems, and I'd like to share some of m
 1. [GAMES-101 Introduction](https://sites.cs.ucsb.edu/~lingqi/teaching/games101.html)  
 1. [Microfacet Models for Refraction through Rough Surfaces](https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf)  
 1. [Chapter 9 Multiple Importance Sampling - Stanford Graphics](https://graphics.stanford.edu/courses/cs348b-03/papers/veach-chapter9.pdf)  
+1. [Chapter 9 Bidirectional Path Tracing - Stanford Graphics](https://graphics.stanford.edu/courses/cs348b-03/papers/veach-chapter10.pdf)   
 1. [RefractiveIndex.Info](https://refractiveindex.info/)  
 1. [Coding Labs - Physically Based Rendering](http://www.codinglabs.net/article_physically_based_rendering.aspx)
