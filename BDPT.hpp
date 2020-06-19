@@ -54,7 +54,7 @@ struct BDPTPath {
 
     static Vector3f PathWeight(const BDPTPathView& lightPath, const BDPTPathView& camPath);
 
-    inline InternalPathVertex SampleNextVertex(const Scene* scene, const InternalPathVertex& vertex, Vector3f w_o);
+    InternalPathVertex SampleNextVertex(const Scene* scene, const InternalPathVertex& vertex, Vector3f w_o);
 private:
 
 };
@@ -131,93 +131,38 @@ struct PathVertex {
         return path->GetVertex(0).Type() == PTVertex::Type::Light;
     }
 
-    Vector3f EvalBsdfOnSolidAngle(Vector3f dir) {
-        assert(Type() != PTVertex::Type::Background);
+    Vector3f EvalBsdfOnSolidAngle(Vector3f dir);
 
-        if (Type() == PTVertex::Type::Light) {
-            return 1.0f;
-        }
-        else if (Type() == PTVertex::Type::Camera) {
-            return 1.0f;
-        } else {
-            assert(index >= 1);
-            return Material()->evalGivenSample((Pre().Position() - Position()).normalized(), dir, Normal(), false);
-        }
-    }
+    float EvalPdfOnSolidAngle(Vector3f dir);
 
-    float EvalPdfOnSolidAngle(Vector3f dir) {
-        assert(Type() != PTVertex::Type::Background);
+    float EvalPdfOnAreaSurface(const Scene* scene, PTVertex v);
 
-        if (Type() == PTVertex::Type::Light) {
-            return getCosineWeightedPdf(Normal(), dir);
-        }
-        else if (Type() == PTVertex::Type::Camera) {
-            return 1.0f;
-        }
-        else {
-            float cosine = abs(dotProduct(dir, Normal()));
-            if (cosine == 0.0f)
-                return 0.0f;
-            Vector3f wo = (Pre().Position() - Position()).normalized();
-            return Material()->pdf(
-                wo,
-                Normal(),
-                dir) / cosine;
-        }
-    }
-
-    float EvalPdfOnAreaSurface(const Scene* scene, PTVertex v) {
-        float distSqr;
-        Vector3f w_i = (v.x - Position()).NormlizeAndGetLengthSqr(&distSqr);
-
-        assert(Type() != PTVertex::Type::Background);
-        float srpdf = EvalPdfOnSolidAngle(w_i);
-        if (scene->ShadowCheck(Vertex(), v)) {
-            return 0.0f;
-        }
-        else {
-            return SrpdfToAreaPdf(srpdf, Vertex(), v);
-        }
-    }
-
-    Vector3f Sample(float* pdf) {
-        assert(Type() != PTVertex::Type::Camera);
-        assert(Type() != PTVertex::Type::Background);
-
-
-        if (Type() == PTVertex::Type::Light) {
-            return getCosineWeightedSample(Normal(), *pdf);
-        }
-        else {
-            Vector3f w_o = (Pre().Position() - Position()).normalized();
-            return Material()->sample(w_o, Normal(), pdf);
-        }
-    }
+    Vector3f Sample(float* pdf);
 };
 
 
 struct BDPTPathView {
-    const BDPTPath* subpath;
+    const BDPTPath* path;
     int count;
-    BDPTPathView(const BDPTPath* subpath, int count)
+    inline BDPTPathView(const BDPTPath* path, int count)
     {
-        this->subpath = subpath;
-        assert(count <= subpath->count);
+        this->path = path;
+        assert(count <= path->count);
         this->count = count;
     }
 
-    const PathVertex operator[](int i) const {
+    inline const PathVertex operator[](int i) const {
         return V(i);
     }
 
-    PathVertex V(int index) const {
+    inline PathVertex V(int index) const {
         assert(index < count);
-        return subpath->GetVertex(index);
+        return path->GetVertex(index);
     }
 
-    PathVertex Last() const {
+    inline PathVertex Last() const {
         assert(count > 0);
-        return subpath->GetVertex(count - 1);
+        return path->GetVertex(count - 1);
     }
 };
 

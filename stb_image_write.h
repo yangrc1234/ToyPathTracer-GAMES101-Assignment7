@@ -617,11 +617,11 @@ static void stbiw__linear_to_rgbe(unsigned char* rgbe, float* linear)
         rgbe[0] = rgbe[1] = rgbe[2] = rgbe[3] = 0;
     }
     else {
-        float normalize = (float)frexp(maxcomp, &exponent) * 256.0f / maxcomp;
+        float Normalize = (float)frexp(maxcomp, &exponent) * 256.0f / maxcomp;
 
-        rgbe[0] = (unsigned char)(linear[0] * normalize);
-        rgbe[1] = (unsigned char)(linear[1] * normalize);
-        rgbe[2] = (unsigned char)(linear[2] * normalize);
+        rgbe[0] = (unsigned char)(linear[0] * Normalize);
+        rgbe[1] = (unsigned char)(linear[1] * Normalize);
+        rgbe[2] = (unsigned char)(linear[2] * Normalize);
         rgbe[3] = (unsigned char)(exponent + 128);
     }
 }

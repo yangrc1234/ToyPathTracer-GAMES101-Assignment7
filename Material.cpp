@@ -9,16 +9,16 @@ Note that return value is not BSDF, since we combine the cosine-term( dot(normal
 The code is just an plain implementation of Walter07. See the paper for why and how.
 */
 Vector3f Material::evalGivenSample(const Vector3f& wo, const Vector3f& wi, const Vector3f& N, bool combineCosineTerm) {
-	float nl = dotProduct(N, wi);
-	float nv = dotProduct(N, wo);
+	float nl = DotProduct(N, wi);
+	float nv = DotProduct(N, wo);
 	if (nl == 0.0f || nv == 0.0f)
 		return 0.0f;
 	Vector3f h = GetHalfDir(N, wi, wo, ior_d);
 
-	float nh = dotProduct(N, h);
-	float lv = dotProduct(wi, wo);
-	float lh = dotProduct(wi, h);
-	float vh = dotProduct(wo, h);
+	float nh = DotProduct(N, h);
+	float lv = DotProduct(wi, wo);
+	float lh = DotProduct(wi, h);
+	float vh = DotProduct(wo, h);
 	float D = GGXTerm(nh, rough);
 	float G = Visibility(nv, vh, rough) * Visibility(nl, lh, rough);
 	Vector3f f = fresnel(wi, h);
@@ -104,7 +104,7 @@ So in bsdf sampling, we chose to reflect the ray or refract the ray, based on fr
 /*Given sample represented as w_o, n, w_i, calculate probablity of it.*/
 float Material::pdf(Vector3f w_o, Vector3f n, Vector3f w_i) {
 
-	float nv = dotProduct(n, w_o), nl = dotProduct(n, w_i);
+	float nv = DotProduct(n, w_o), nl = DotProduct(n, w_i);
 	if (nv == 0.0f || nl == 0.0f)
 		return 0.0f;
 	//Get the fresnel.
@@ -113,9 +113,9 @@ float Material::pdf(Vector3f w_o, Vector3f n, Vector3f w_i) {
 	//Calculate probablity of h.
 	float pdf_h = GGXHalfPDF(n, h, rough);
 
-	float vh = dotProduct(w_o, h);
+	float vh = DotProduct(w_o, h);
 	float abs_vh = abs(vh);
-	float lh = dotProduct(w_i, h);
+	float lh = DotProduct(w_i, h);
 	float ior_i, ior_o;
 	GetInsideOutsideIOR(n, w_i, w_o, ior_d, ior_i, ior_o);
 	if (nv * nl < 0.0f) {
@@ -130,7 +130,7 @@ float Material::pdf(Vector3f w_o, Vector3f n, Vector3f w_i) {
 	else if (nv * nl > 0.0f) {
 		//Reflection
 		float jaco = SafeDivide(1.0f, (4.0f * abs_vh));
-		auto diffuse = getCosineWeightedPdf( n, w_i);
+		auto diffuse = GetCosineWeightedPdf( n, w_i);
 		if (m_type == Metal) {
 			return pdf_h * jaco;
 		}
@@ -149,41 +149,41 @@ float Material::pdf(Vector3f w_o, Vector3f n, Vector3f w_i) {
 /*Given w_o, n, draw a w_i sample, return it and its pdf*/
 Vector3f Material::sample(Vector3f w_o, Vector3f n, float* pdf) {
 	Vector3f H = SampleGGXSpecularH(n, rough);
-	Vector3f w_i_s = reflect(w_o, H);
+	Vector3f w_i_s = Reflect(w_o, H);
 	float pdf_h = GGXHalfPDF(n, H, rough);
 
-	float vn = dotProduct(w_o, n);
-	float nh = dotProduct(n, H);
-	float vh = dotProduct(w_o, H);
+	float vn = DotProduct(w_o, n);
+	float nh = DotProduct(n, H);
+	float vh = DotProduct(w_o, H);
 	float abs_vh = abs(vh);
 	float ior_i, ior_o;
 	float jaco_reflect = SafeDivide(1.0f, (4.0f * abs_vh));
 	if (m_type == Metal) {
 		*pdf = pdf_h * jaco_reflect;
-		if (vn * dotProduct(w_i_s, n) < 0.0f)
+		if (vn * DotProduct(w_i_s, n) < 0.0f)
 			*pdf = 0.0f;
 		return w_i_s;
 	}
 	else if (m_type == Dieletric) {
-		if (get_random_float() < 0.5f) {
+		if (GetRandomFloat() < 0.5f) {
 			//Specular.
-			float pdf_d = getCosineWeightedPdf(n, w_i_s);
+			float pdf_d = GetCosineWeightedPdf(n, w_i_s);
 			*pdf = (pdf_h * jaco_reflect + pdf_d) * 0.5f;
-			if (vn * dotProduct(w_i_s, n) < 0.0f)
+			if (vn * DotProduct(w_i_s, n) < 0.0f)
 				*pdf = 0.0f;
 			return w_i_s;
 		}
 		else {
 			//Diffuse.
 			float pdf_d;
-			Vector3f w_i_d = getCosineWeightedSample(n, pdf_d);
-			H = (w_i_d + w_o).normalized();
-			vh = dotProduct(w_o, H);
+			Vector3f w_i_d = GetCosineWeightedSample(n, pdf_d);
+			H = (w_i_d + w_o).Normalized();
+			vh = DotProduct(w_o, H);
 			abs_vh = abs(vh);
 			pdf_h = GGXHalfPDF(n, H, rough);
 			jaco_reflect = SafeDivide(1.0f, (4.0f * abs_vh));
 			*pdf = (pdf_h * jaco_reflect + pdf_d) * 0.5f;
-			if (vn * dotProduct(w_i_d, n) < 0.0f)
+			if (vn * DotProduct(w_i_d, n) < 0.0f)
 				*pdf = 0.0f;
 			return w_i_d;
 		}
@@ -191,22 +191,22 @@ Vector3f Material::sample(Vector3f w_o, Vector3f n, float* pdf) {
 	else {  //Transmittance dieletric.
 		Vector3f f = fresnel(w_o, H);
 
-		if (get_random_float() < f.x) {
+		if (GetRandomFloat() < f.x) {
 			//Go reflection.
 			*pdf = pdf_h * f.x * jaco_reflect;
-			if (vn * dotProduct(w_i_s, n) < 0.0f)
+			if (vn * DotProduct(w_i_s, n) < 0.0f)
 				*pdf = 0.0f;
 			return w_i_s;
 		}
 		else {
-			Vector3f w_i_refract = refract(w_o, H, ior_d);
+			Vector3f w_i_refract = Refract(w_o, H, ior_d);
 			GetInsideOutsideIOR(n, w_i_refract, w_o, ior_d, ior_i, ior_o);
-			float lh = dotProduct(w_i_refract, H);
+			float lh = DotProduct(w_i_refract, H);
 			float den = (ior_i * lh + ior_o * vh);
 			float jaco_refract = SafeDivide(ior_o * ior_o * abs_vh, (den * den));
 			//go Refraction
 			*pdf = pdf_h * (1.0f - f.x) * jaco_refract;
-			if (vn * dotProduct(w_i_refract, n) > 0.0f)
+			if (vn * DotProduct(w_i_refract, n) > 0.0f)
 				*pdf = 0.0f;
 			return w_i_refract;
 		}
@@ -220,7 +220,7 @@ void Material::SetSmoothness(float smooth) {
 
 Vector3f Material::fresnel(Vector3f I, const Vector3f& N) const {
 	if (this->m_type == Metal) {
-		float cosTheta = dotProduct(I, N);
+		float cosTheta = DotProduct(I, N);
 		float cosTheta2 = cosTheta * cosTheta;
 		float sinTheta2 = 1.0 - cosTheta2;
 		Vector3f TwoEtaCosTheta = 2.0 * ior_m * cosTheta;
@@ -232,7 +232,7 @@ Vector3f Material::fresnel(Vector3f I, const Vector3f& N) const {
 	}
 	else {
 		I = -I;
-		float cosi = clamp(-1, 1, dotProduct(I, N));
+		float cosi = std::clamp(DotProduct(I, N), -1., 1.);
 		float etai = 1, etat = this->ior_d;
 		if (cosi > 0) { std::swap(etai, etat); }
 		// Compute sini using Snell's law
@@ -249,20 +249,4 @@ Vector3f Material::fresnel(Vector3f I, const Vector3f& N) const {
 			return (Rs * Rs + Rp * Rp) / 2;
 		}
 	}
-}
-
-Material::Material(MaterialType t, Vector3f e) {
-	m_type = t;
-	//m_color = c;
-	m_emission = e;
-	Kd = Vector3f(0.5f, 0.5f, 0.5f);
-}
-
-MaterialType Material::getType() { return m_type; }
-
-Vector3f Material::getEmission() { return m_emission; }
-
-bool Material::hasEmission() {
-	if (m_emission.x > 0.0f || m_emission.y > 0.0f || m_emission.z > 0.0f) return true;
-	else return false;
 }

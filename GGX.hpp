@@ -27,17 +27,11 @@ inline float GGXTerm(float ndoth, float roughness) {
 	return a2 / (
 		M_PI * cosehta4 * denominator_partb
 		);
-	/*
-	float d = (ndoth * a2 - ndoth) * ndoth + 1.0f;
-	return a2 / (M_PI * d * d + EPSILON);
-	*/
-
-
 }
 
 /*Given normal and microsurface normal(half direction), calculate probablity of the microsurface.*/
 inline float GGXHalfPDF(Vector3f n, Vector3f h, float roughness) {
-	return GGXTerm(abs(dotProduct(n, h)), roughness) * abs(dotProduct(n, h));
+	return GGXTerm(abs(DotProduct(n, h)), roughness) * abs(DotProduct(n, h));
 }
 
 /*Convert smoothness to roughness*/
@@ -50,7 +44,7 @@ Given normal and roughness, generate a half dir sample.
 GGX paper(35)(36)
 */
 inline Vector3f SampleGGXSpecularH(Vector3f N, float roughness) {
-	float d1 = get_random_float(), d2 = get_random_float();
+	float d1 = GetRandomFloat(), d2 = GetRandomFloat();
 	float theta = std::atan2(roughness * std::sqrt(d1), std::sqrt(1.0f - d1));
 	float phi = 2.0f * M_PI * d2;
 	Vector3f microNLocal(
@@ -59,7 +53,7 @@ inline Vector3f SampleGGXSpecularH(Vector3f N, float roughness) {
 		std::cos(theta)
 		);
 
-	auto microNWorld = toWorld(microNLocal, N).normalized();
+	auto microNWorld = TransformVectorToWorld(microNLocal, N).Normalized();
 
 	return microNWorld;
 }

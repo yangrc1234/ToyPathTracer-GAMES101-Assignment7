@@ -39,7 +39,7 @@ Buffer FillBufferThread(int threadCount, int threadOffset, int spp, Vector3f* bu
     {
         int xPixel = i % curScene->width;
         int yPixel = i / curScene->width;
-        reset_random((int)i + 1);
+        ResetRandom((int)i + 1);
         for (int ispp = 0; ispp < spp; ispp++)
         {
             // generate primary ray direction

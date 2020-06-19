@@ -24,11 +24,19 @@ public:
     Vector3f Kd;
     float rough = 0.2f;
 
+    inline Material(MaterialType t = Dieletric, Vector3f e = Vector3f(0, 0, 0)) {
+        m_type = t;
+        //m_color = c;
+        m_emission = e;
+        Kd = Vector3f(0.5f, 0.5f, 0.5f);
+    }
     void SetSmoothness(float smooth);
-    Material(MaterialType t=Dieletric, Vector3f e=Vector3f(0,0,0));
-    MaterialType getType();
-    Vector3f getEmission();
-    bool hasEmission();
+    inline MaterialType getType() { return m_type; }
+    inline Vector3f GetEmission() { return m_emission; }
+    inline bool hasEmission() {
+        if (m_emission.x > 0.0f || m_emission.y > 0.0f || m_emission.z > 0.0f) return true;
+        else return false;
+    }
     Vector3f fresnel(Vector3f I, const Vector3f& N) const;
     float pdf(Vector3f w_o, Vector3f n, Vector3f w_i);
     Vector3f sample(Vector3f w_o, Vector3f n, float* pdf);

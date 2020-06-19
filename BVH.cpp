@@ -34,10 +34,10 @@ BVHNodeIndex BVHAccel::recursiveBuild(std::vector<Object*> objects)
     // Compute bounds of all primitives in BVH node
     Bounds3 bounds;
     for (int i = 0; i < objects.size(); ++i)
-        bounds = Union(bounds, objects[i]->getBounds());
+        bounds = Union(bounds, objects[i]->GetBounds());
     if (objects.size() == 1) {
         // Create leaf _BVHBuildNode_
-        GN(nodeIndex).bounds = objects[0]->getBounds();
+        GN(nodeIndex).bounds = objects[0]->GetBounds();
         GN(nodeIndex).object = objects[0];
         GN(nodeIndex).left = BVHNodeNull;
         GN(nodeIndex).right = BVHNodeNull;
@@ -56,25 +56,25 @@ BVHNodeIndex BVHAccel::recursiveBuild(std::vector<Object*> objects)
         Bounds3 centroidBounds;
         for (int i = 0; i < objects.size(); ++i)
             centroidBounds =
-                Union(centroidBounds, objects[i]->getBounds().Centroid());
+                Union(centroidBounds, objects[i]->GetBounds().Centroid());
         int dim = centroidBounds.maxExtent();
         switch (dim) {
         case 0:
             std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().x <
-                       f2->getBounds().Centroid().x;
+                return f1->GetBounds().Centroid().x <
+                       f2->GetBounds().Centroid().x;
             });
             break;
         case 1:
             std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().y <
-                       f2->getBounds().Centroid().y;
+                return f1->GetBounds().Centroid().y <
+                       f2->GetBounds().Centroid().y;
             });
             break;
         case 2:
             std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().z <
-                       f2->getBounds().Centroid().z;
+                return f1->GetBounds().Centroid().z <
+                       f2->GetBounds().Centroid().z;
             });
             break;
         }
@@ -126,7 +126,7 @@ Intersection BVHAccel::Intersect(const Ray& ray, FaceCulling culling) const
         }
 
         if (node.object != nullptr){
-            auto t = node.object->getIntersection(ray, culling);
+            auto t = node.object->GetIntersection(ray, culling);
             if (t.happened) {
                 if (!insect.happened || insect.distance > t.distance) {
                     insect = t;
@@ -154,7 +154,7 @@ void BVHAccel::getSample(BVHNodeIndex index, float p, Intersection &pos){
 }
 
 void BVHAccel::Sample(Intersection &pos){
-    float p = std::sqrt(get_random_float()) * GN(Root()).area;
+    float p = std::sqrt(GetRandomFloat()) * GN(Root()).area;
     getSample(Root(), p, pos);
 }
 

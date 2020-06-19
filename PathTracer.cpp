@@ -12,12 +12,12 @@ public:
     Object* obj;
 
     float pdf(Vector3f x, Vector3f w_o, Vector3f n, Vector3f w_i) {
-        auto intersection = obj->getIntersection(Ray(x, w_i), FaceCulling::NoCull);
+        auto intersection = obj->GetIntersection(Ray(x, w_i), FaceCulling::NoCull);
         if (!intersection.happened)
             return 0.0f;
-        float lightDistanceSqr = dotProduct(intersection.coords - x, intersection.coords - x);
+        float lightDistanceSqr = DotProduct(intersection.coords - x, intersection.coords - x);
         float rawpdf = obj->pdf();
-        float costhetap = dotProduct(intersection.normal, -w_i);
+        float costhetap = DotProduct(intersection.normal, -w_i);
         if (costhetap == 0.0f)
             return 0.0f;
         return (double)rawpdf * lightDistanceSqr / abs(costhetap);   //When we generate sample, even back-facing lights are considered. So shouldn't cull those lights here(using a abs).
@@ -29,10 +29,10 @@ public:
         pos.m = obj->m;
         pos.happened = true;
         Vector3f w_i = (pos.coords - x);
-        float lightDistanceSqr = dotProduct(w_i, w_i);
-        w_i = w_i.normalized();
+        float lightDistanceSqr = DotProduct(w_i, w_i);
+        w_i = w_i.Normalized();
         float rawpdf = obj->pdf();
-        float costhetap = dotProduct(pos.normal, -w_i);
+        float costhetap = DotProduct(pos.normal, -w_i);
         if (costhetap == 0.0f)
             *pdf = 0.0f;
         *pdf = (double)rawpdf * lightDistanceSqr / abs(costhetap);   //When we generate sample, even back-facing lights are considered. So shouldn't cull those lights here.
@@ -53,7 +53,7 @@ Vector3f PathTrace(const Scene* scene, const Ray& ray, int& outBounces)
     while (true) {
         if (alpha.x == 0.0f && alpha.y == 0.0f && alpha.z == 0.0f)
             break;
-        auto intersection = scene->intersect(currentRay, lastBounceFlipCulling ? FaceCulling::CullFront : FaceCulling::CullBack);
+        auto intersection = scene->Intersect(currentRay, lastBounceFlipCulling ? FaceCulling::CullFront : FaceCulling::CullBack);
 
         if (intersection.type == PTVertex::Type::Background) {
             // std::cout << throughput<<std::endl;
@@ -63,7 +63,7 @@ Vector3f PathTrace(const Scene* scene, const Ray& ray, int& outBounces)
 
         if (intersection.obj->m->hasEmission()) {
             if (!lastBounceExplicitSampledLight) {
-                resultRadiance += alpha * intersection.obj->m->getEmission();
+                resultRadiance += alpha * intersection.obj->m->GetEmission();
             }
         }
 
@@ -90,14 +90,14 @@ Vector3f PathTrace(const Scene* scene, const Ray& ray, int& outBounces)
                 Vector3f eval_result = 0;
 
                 if (pdf_bsdf + pdf_bsdf_light > 0.0f) {
-                    auto inte = light->getIntersection(Ray(x, w_i_bsdf), FaceCulling::CullBack);
+                    auto inte = light->GetIntersection(Ray(x, w_i_bsdf), FaceCulling::CullBack);
 
                     if (inte.happened && !scene->ShadowCheck(inte.coords, x)) {
                         eval_result += mat->evalGivenSample(w_o, w_i_bsdf, n) / (EPSILON + pdf_bsdf + pdf_bsdf_light);
                     }
                 }
                 if (pdf_light_light + pdf_light_bsdf > 0.0f) {
-                    auto inte = light->getIntersection(Ray(x, w_i_light), FaceCulling::CullBack);
+                    auto inte = light->GetIntersection(Ray(x, w_i_light), FaceCulling::CullBack);
                     if (!scene->ShadowCheck(inte.coords, x))
                         eval_result += mat->evalGivenSample(w_o, w_i_light, n) / (EPSILON + pdf_light_light + pdf_light_bsdf);
                 }
@@ -113,13 +113,13 @@ Vector3f PathTrace(const Scene* scene, const Ray& ray, int& outBounces)
         }
 
         currentRay = Ray(x, w_i_bsdf);
-        if (dotProduct(n, w_i_bsdf) < 0.0f)
+        if (DotProduct(n, w_i_bsdf) < 0.0f)
             lastBounceFlipCulling = true;
         else
             lastBounceFlipCulling = false;
 
         bool doRussianRoulette = outBounces > 4;
-        if (!doRussianRoulette || get_random_float() < RussianRoulette) {
+        if (!doRussianRoulette || GetRandomFloat() < RussianRoulette) {
             alpha = alpha * weight
                 / (doRussianRoulette ? RussianRoulette : 1.0f);
             outBounces += 1;

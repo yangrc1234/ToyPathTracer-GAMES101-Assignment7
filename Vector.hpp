@@ -2,15 +2,13 @@
 // Created by LEI XU on 5/13/19.
 //
 #pragma once
-#ifndef RAYTRACING_VECTOR_H
-#define RAYTRACING_VECTOR_H
 
 #include <iostream>
 #include <cmath>
 #include <algorithm>
 
 class alignas(16) Vector3f;
-inline double dotProduct(const Vector3f& a, const Vector3f& b);
+inline double DotProduct(const Vector3f& a, const Vector3f& b);
 
 class alignas(16) Vector3f {
 public:
@@ -26,14 +24,17 @@ public:
     Vector3f operator * (const float &r) const { return Vector3f(x * r, y * r, z * r); }
     Vector3f operator / (const float &r) const { return Vector3f(x / r, y / r, z / r); }
 
-    float norm() {return std::sqrt(x * x + y * y + z * z);}
-    Vector3f normalized() {
+    inline float SqrMagnitude() { return x * x + y * y + z * z; }
+
+    inline float Magnitude() {return std::sqrt(SqrMagnitude());}
+
+    inline Vector3f Normalized() {
         float n = std::sqrt(x * x + y * y + z * z);
         return Vector3f(x / n, y / n, z / n);
     }
 
-    Vector3f NormlizeAndGetLengthSqr(float* lengthSqr) {
-        *lengthSqr = dotProduct(*this, *this);
+    inline Vector3f NormlizeAndGetLengthSqr(float* lengthSqr) {
+        *lengthSqr = DotProduct(*this, *this);
         return *this/ std::sqrt(*lengthSqr);
     }
 
@@ -96,24 +97,13 @@ public:
     float x, y;
 };
 
-inline Vector3f lerp(const Vector3f &a, const Vector3f& b, const float &t)
+inline Vector3f Lerp(const Vector3f &a, const Vector3f& b, const float &t)
 { return a * (1 - t) + b * t; }
 
-inline Vector3f normalize(const Vector3f &v)
-{
-    float mag2 = v.x * v.x + v.y * v.y + v.z * v.z;
-    if (mag2 > 0) {
-        float invMag = 1 / sqrtf(mag2);
-        return Vector3f(v.x * invMag, v.y * invMag, v.z * invMag);
-    }
-
-    return v;
-}
-
-inline double dotProduct(const Vector3f &a, const Vector3f &b)
+inline double DotProduct(const Vector3f &a, const Vector3f &b)
 { return (double)a.x * b.x + (double)a.y * b.y + (double)a.z * b.z; }
 
-inline Vector3f crossProduct(const Vector3f &a, const Vector3f &b)
+inline Vector3f CrossProduct(const Vector3f &a, const Vector3f &b)
 {
     return Vector3f(
             a.y * b.z - a.z * b.y,
@@ -121,7 +111,3 @@ inline Vector3f crossProduct(const Vector3f &a, const Vector3f &b)
             a.x * b.y - a.y * b.x
     );
 }
-
-
-
-#endif //RAYTRACING_VECTOR_H
