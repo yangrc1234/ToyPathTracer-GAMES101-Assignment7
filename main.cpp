@@ -95,8 +95,8 @@ int main(int argc, char** argv)
     scene.Add(&left);
     scene.Add(&right);
     scene.Add(&light_);
-    scene.Add(&glassBall);
-    //scene.Add(&lightOcculuder);
+    //scene.Add(&glassBall);
+    scene.Add(&lightOcculuder);
     scene.BuildBVH();
 #if _DEBUG
     auto test = refract(Vector3f(-1.0f, 1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);

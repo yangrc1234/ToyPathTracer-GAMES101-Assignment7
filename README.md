@@ -36,7 +36,11 @@ Adjust material to smooth dieletric:
 Replace the white wall with silver:  
 ![](images/Cornell-64-SmoothSilver.jpg)  
 Refractive ball:   
-![](images/Cornell-64-RefractiveBall.jpg)  
+![](images/Cornell-64-RefractiveBall.jpg)   
+Comparison of path tracing and BDPT:  
+| Path Tracing(64spp) | BDPT(32spp) |
+:--------------:|:----------------------:
+![](images/Cornell-64-PT.jpg)![](images/Cornell-32-BDPT.jpg)
 
 
 ## Tips  
