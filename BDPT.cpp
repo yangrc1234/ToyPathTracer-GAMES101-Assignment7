@@ -72,9 +72,7 @@ void BDPTPath::GenerateLightPath(Object* lightObj) {
 
     if (pdf1 != 0.0f)
         verts[1].alpha = SafeDivide(verts[0].alpha, pdf1);
-    else
-
-    if (verts[1].vertex.type == PTVertex::Type::Background) {
+    else if (verts[1].vertex.type == PTVertex::Type::Background) {
         count = 2;
         return;
     }
@@ -85,21 +83,26 @@ void BDPTPath::FillPathUsingRussianRoulette(int start) {
     count = start + 1;
 
     for (int i = start; i < MAX_BDPT_PATH_LENGTH - 1; i++) {
-        float rrProb = i > 4 ? RUSSIAN_ROULETTE : 1.0f;
-        if (GetRandomFloat() > rrProb) {
-            break;
-        }
         if (verts[i].vertex.type == PTVertex::Type::Background)
             break;
         auto w_o = verts[i - 1].vertex.x - verts[i].vertex.x;
         w_o = w_o.Normalized();
         auto mat = verts[i].vertex.obj->m;
-        float pdf;
-        Vector3f alpha;
-
+        
+        Vector3f bsdf;
         verts[i + 1] = SampleNextVertex(scene, verts[i], w_o);
+        
+        float rrProb = i > 4 ? RUSSIAN_ROULETTE : std::max(verts[i + 1].alpha.x, std::max(verts[i + 1].alpha.y, verts[i + 1].alpha.z));
+        rrProb = std::min(rrProb, 1.0f);
+        if (GetRandomFloat() > rrProb) {
+            break;
+        }
+        
         if (verts[i + 1].pdf == 0.0f)
             break;
+
+        verts[i + 1].pdf *= rrProb;
+        verts[i + 1].alpha = verts[i].alpha * verts[i + 1].alpha / rrProb;
 
         count++;
     }
@@ -141,9 +144,16 @@ BDPTPath& BDPTPath::Append(PTVertex vertex, bool dontcheckshadow) {
     else {
         float distSqr;
         auto w_i = (vertex.x - lastVertex.Position()).NormlizeAndGetLengthSqr(&distSqr);
+        
         float srpdf = lastVertex.EvalPdfOnSolidAngle(w_i);
         editVertex.pdf = SrpdfToAreaPdf(srpdf, lastVertex.Vertex(), editVertex.vertex);
-        editVertex.alpha = lastVertex.Throughput() * SafeDivide(lastVertex.EvalBsdfOnSolidAngle(w_i), srpdf);
+        Vector3f alpha = SafeDivide(lastVertex.EvalBsdfOnSolidAngle(w_i), srpdf);
+        editVertex.alpha = lastVertex.Throughput() * alpha;
+
+        float rrProb = count > 4 ? RUSSIAN_ROULETTE : std::max(alpha.x, std::max(alpha.y, alpha.z));
+        rrProb = std::min(rrProb, 1.0f);
+        editVertex.pdf *= rrProb;
+        editVertex.alpha = SafeDivide(editVertex.alpha, rrProb);
     }
 
     count++;
@@ -254,7 +264,7 @@ BDPTPath::InternalPathVertex  BDPTPath::SampleNextVertex(const Scene* scene, con
     BDPTPath::InternalPathVertex result;
     result.shadowed = false;
     result.vertex = intersection;
-    result.alpha = SafeDivide(bsdf, srpdf) * vertex.alpha;
+    result.alpha = SafeDivide(bsdf, srpdf);
     result.pdf = SrpdfToAreaPdf(srpdf, vertex.vertex, result.vertex);
 
     return result;

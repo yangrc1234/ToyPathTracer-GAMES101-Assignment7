@@ -30,17 +30,22 @@ To start the program after built, type:
 All images are rendered using 64 spps.  
 
 Standard cornell box:  
-![](images/Cornell-64.jpg)    
+
 Adjust material to smooth dieletric:  
-![](images/Cornell-64-SmoothDieletric.jpg)   
+
 Replace the white wall with silver:  
-![](images/Cornell-64-SmoothSilver.jpg)  
+
 Refractive ball:   
 ![](images/Cornell-64-RefractiveBall.jpg)   
 Comparison of path tracing and BDPT:  
-| Path Tracing(64spp) | BDPT(32spp) |
-:--------------:|:----------------------:
-![](images/Cornell-64-PT.jpg)![](images/Cornell-32-BDPT.jpg)
+
+| Scene Name | Path Tracing(64spp) | Bi-directional Path Tracing(32spp) |  
+| --- | --- | --- |  
+| Standard Cornell Box  |   ![](images/Cornell-Standard-PT-64.jpg)          |  ![](images/Cornell-Standard-BDPT-16.jpg)   | 
+| Smooth Dieletric      |   ![](images/Cornell-SmoothDieletric-PT-64.jpg)   |  ![](images/Cornell-SmoothDieletric-BDPT-16.jpg)  |
+| Silver Background     |   ![](images/Cornell-SilverBackground-PT-64.jpg)  |  ![](images/Cornell-SilverBackground-BDPT-16.jpg) |
+| Refractive Ball       |   ![](images/Cornell-RefractiveBall-PT-64.jpg)    |  ![](images/Cornell-RefractiveBall-BDPT-16.jpg) |
+| Occlusion             |   ![](images/Cornell-Occlusion-PT-64.jpg)         |  ![](images/Cornell-Occlusion-BDPT-16.jpg)  |
 
 
 ## Tips  

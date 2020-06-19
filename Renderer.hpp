@@ -8,7 +8,7 @@
 class Renderer
 {
 public:
-    void Render(const Scene& scene, int spp, int thread_count, bool bdpt);
+    void Render(std::string outputFileName, const Scene& scene, int spp, int thread_count, bool bdpt);
 
 private:
 };

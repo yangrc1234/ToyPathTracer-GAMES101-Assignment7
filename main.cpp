@@ -33,6 +33,7 @@ void SaveFloatImageToJpg(std::vector<Vector3f> framebuffer, int width, int heigh
 // function().
 int main(int argc, char** argv)
 {
+    std::string outputFileName = tryParseArg(argc, argv, "-o", std::string("output.jpg"));
 #ifdef _DEBUG
     int spp = tryParseArg(argc, argv, "-spp", 1);
     int thread = tryParseArg(argc, argv, "-j", 1);
@@ -96,7 +97,7 @@ int main(int argc, char** argv)
     scene.Add(&right);
     scene.Add(&light_);
     //scene.Add(&glassBall);
-    scene.Add(&lightOcculuder);
+    //scene.Add(&lightOcculuder);
     scene.BuildBVH();
 #if _DEBUG
     auto test = refract(Vector3f(-1.0f, 1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);
@@ -142,7 +143,7 @@ int main(int argc, char** argv)
     }*/
 #endif
     Renderer r;
-    r.Render(scene, spp, thread, usebdpt);
+    r.Render(outputFileName, scene, spp, thread, usebdpt);
 
 
     return 0;

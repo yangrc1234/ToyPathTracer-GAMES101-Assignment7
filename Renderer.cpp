@@ -65,7 +65,7 @@ Buffer FillBufferThread(int threadCount, int threadOffset, int spp, Vector3f* bu
 // The main render function. This where we iterate over all pixels in the image,
 // generate primary rays and cast these rays into the scene. The content of the
 // framebuffer is saved to a file.
-void Renderer::Render(const Scene& scene, int spp, int thread_count, bool bdpt)
+void Renderer::Render(std::string outputFileName, const Scene& scene, int spp, int thread_count, bool bdpt)
 {
     if (bdpt) {
         std::cout << "Tracing mode: Bidirectional Ptah Tracing" << std::endl;
@@ -123,5 +123,5 @@ void Renderer::Render(const Scene& scene, int spp, int thread_count, bool bdpt)
     std::cout << "Rays: " << totalRays << std::endl;
     std::cout << "Rays Per Second: " << (float)totalRays / 1e3f / std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() << "MRays" << std::endl;
     
-    SaveFloatImageToJpg(framebuffer, scene.width, scene.height, "output.jpg");
+    SaveFloatImageToJpg(framebuffer, scene.width, scene.height, outputFileName.c_str());
 }
