@@ -55,7 +55,7 @@ bool Scene::ShadowCheck(const PTVertex& v1, const PTVertex& v2) const {
 	*/
 	Vector3f atob = v2.x - v1.x;
 
-	if (v1.obj != nullptr && v2.obj != v1.obj && v1.obj->m->getType() == MaterialType::TransmittanceDieletric) {    //v1 and v2 on the same transmittance object.
+	if (v1.obj != nullptr && v2.obj != v1.obj && v1.obj->m->getType() == MaterialType::Transparent) {    //v1 and v2 on the same transmittance object.
 																													//Transmittance material.
 		if (DotProduct(atob, v1.N) < 0.0f) {
 			//v2 is on backside of v1 surface. flip culling.

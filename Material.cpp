@@ -46,7 +46,7 @@ Vector3f Material::evalGivenSample(const Vector3f& wo, const Vector3f& wi, const
 	}
 	else {      //Refraction
 		//Calculate half dir.
-		if (m_type != TransmittanceDieletric)
+		if (m_type != Transparent)
 			return 0.0f;
 		float ior_i, ior_o;
 		GetInsideOutsideIOR(N, wi, wo, ior_d, ior_i, ior_o);
@@ -122,7 +122,7 @@ float Material::pdf(Vector3f w_o, Vector3f n, Vector3f w_i) {
 		//Refraction.
 		float den = (ior_i * lh + ior_o * vh);
 		float jaco = SafeDivide(ior_o * ior_o * abs_vh, (den * den));
-		if (m_type != TransmittanceDieletric)
+		if (m_type != Transparent)
 			return 0.0f;
 
 		return pdf_h * (1.0f - f.x) * jaco;

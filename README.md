@@ -8,7 +8,7 @@ Just for fun. won't be maintained in the future.
 * Multi-importance sampling for direct illumination.    
 * GGX microfacet model for BSDF and importance sampling.  
 * Lambertian model is implemented for dieletric surface. It's combined with GGX microfacet model in a similar way to the game engine Unity.(Combined using fresnel term)
-* Three types of material: Metal, Dieletric, Transmittance Dieletric.  
+* Three types of material: Metal, Dieletric, Transparent.  
 
 ## Run
 The scene is hard-coded in main.cpp.  

@@ -9,7 +9,7 @@
 #include "global.hpp"
 
 enum MaterialType {
-    Dieletric, Metal, TransmittanceDieletric
+    Dieletric, Metal, Transparent
 };
 
 class Material{

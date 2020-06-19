@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     copper->ior_m_k = Vector3f(4.1592f, 2.5978f, 2.4771);
     copper->SetSmoothness(0.7f);
 
-    Material* mglassBall = new Material(TransmittanceDieletric);
+    Material* mglassBall = new Material(Transparent);
     mglassBall->ior_d = 1.5f;
     mglassBall->SetSmoothness(.9f);
 
