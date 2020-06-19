@@ -3,6 +3,7 @@ This is a simple path tracer, based on assignment 7 from the great online course
 Just for fun. won't be maintained in the future.  
 
 ## Features
+* Both path tracing and bi-directional path tracing(BDPT) implemented.   
 * Multi-threading based on C++11.  
 * Multi-importance sampling for direct illumination.    
 * GGX microfacet model for BSDF and importance sampling.  
@@ -22,7 +23,7 @@ And use make or VS depending on your platform.
 
 To start the program after built, type:   
 ```
-./RayTracing -j [Thread count] -spp [Sample count per pixel]
+./RayTracing -j [Thread count] -spp [Sample count per pixel] -bdpt[1 Use bidirectional path tracing or 0 use normal path tracing. Default to 1.]
 ``` 
 
 ## Images  
