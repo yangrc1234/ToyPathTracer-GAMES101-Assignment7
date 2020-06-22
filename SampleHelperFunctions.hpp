@@ -123,10 +123,9 @@ inline float SrpdfToAreaPdf(float srpdf, const PTVertex& v1, const PTVertex& v2)
 	assert(v1.type != PTVertex::Type::Background);
 	float distSqr;
 	Vector3f w = (v2.x - v1.x).NormlizeAndGetLengthSqr(&distSqr);
-	if (v1.type == PTVertex::Type::Camera) {
-		return srpdf * abs(DotProduct(-w, v2.N) / distSqr);
-	}
-	else {
-		return srpdf * abs(DotProduct(w, v1.N) * DotProduct(-w, v2.N) / distSqr);
-	}
+	float cos1 = v1.type == PTVertex::Type::Camera ? 1.0f : abs(DotProduct(w, v1.N));
+	float cos2 = v2.type == PTVertex::Type::Camera ? 1.0f : abs(DotProduct(-w, v2.N));
+
+	return srpdf * abs(cos1 * cos2 / distSqr);
+
 }

@@ -1,3 +1,4 @@
+#include "global.hpp"
 #include "Renderer.hpp"
 #include "Scene.hpp"
 #include "Triangle.hpp"
@@ -7,6 +8,7 @@
 #include <chrono>
 #include <sstream>
 #include "SceneRenderingHelper.hpp"
+#include "SampleHelperFunctions.hpp"
 #include "BDPT.hpp"
 
 template<typename T> 
@@ -78,9 +80,9 @@ int main(int argc, char** argv)
     mglassBall->ior_d = 1.5f;
     mglassBall->SetSmoothness(.9f);
 
-    MeshTriangle floor("../models/cornellbox/floor.obj", white);
-    MeshTriangle shortbox("../models/cornellbox/shortbox.obj", white);
-    MeshTriangle tallbox("../models/cornellbox/tallbox.obj", white);
+    MeshTriangle floor("../models/cornellbox/floor.obj", silver);
+    MeshTriangle shortbox("../models/cornellbox/shortbox.obj", silver);
+    MeshTriangle tallbox("../models/cornellbox/tallbox.obj", silver);
     MeshTriangle left("../models/cornellbox/left.obj", red);
     MeshTriangle right("../models/cornellbox/right.obj", green);
     MeshTriangle light_("../models/cornellbox/light.obj", light);
@@ -100,23 +102,23 @@ int main(int argc, char** argv)
     //scene.Add(&lightOcculuder);
     scene.BuildBVH();
 #if _DEBUG
-    auto test = refract(Vector3f(-1.0f, 1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);
-    auto test2 = refract(Vector3f(-1.0f, -1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);
-    auto test5 = refract(Vector3f(-10.0f, -1.0f, 0.0f).normalized(), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);
+    auto test = Refract(Vector3f(-1.0f, 1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);
+    auto test2 = Refract(Vector3f(-1.0f, -1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);
+    auto test5 = Refract(Vector3f(-10.0f, -1.0f, 0.0f).Normalized(), Vector3f(0.0f, 1.0f, 0.0f), 1.5f);
     Vector3f t2;
-    auto test3 = reflect(Vector3f(-1.0f, 1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f));
+    auto test3 = Reflect(Vector3f(-1.0f, 1.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f));
 
-    auto test4 = -(1.5f * Vector3f(-1.0f, -1.0f, 0.0f).normalized() + Vector3f(1.5f, 1.0f, 0.0f).normalized());
+    auto test4 = -(1.5f * Vector3f(-1.0f, -1.0f, 0.0f).Normalized() + Vector3f(1.5f, 1.0f, 0.0f).Normalized());
 
     int t;
-    Vector3f debugPixel = Vector3f(81, 87, 0);
+    Vector3f debugPixel = Vector3f(434, 510, 0);
     Vector3f debugPixelUV = (debugPixel / Vector3f(scene.width, scene.height, 1.0f) - 0.5f) * 2.0f;
 
     float scale = CalculateScale(scene.fov);
     auto debugRay = PixelPosToRay(debugPixel.x, debugPixel.y, scene.width, scene.height, scale);
-    reset_random(81 + 87 * scene.height + 1);
+    ResetRandom(434 + 510 * scene.height + 1);
     std::vector<Vector3f> tb(scene.width * scene.height);
-    //BDPT(&scene, Ray(scene.eyePos, debugRay), t, &tb[0]);
+    BDPT(&scene, Ray(scene.eyePos, debugRay), t, &tb[0]);
     SaveFloatImageToJpg(tb, scene.width, scene.height, "t.jpg");
     /*{
         BDPTPath lightpath(&scene);

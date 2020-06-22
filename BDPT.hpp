@@ -89,6 +89,8 @@ struct PathVertex {
     }
 
     inline Vector3f Normal() const {
+        if (path->verts[index].vertex.type == PTVertex::Type::Camera)
+            return Vector3f(0.0f, 0.0f, 1.0f);
         return path->verts[index].vertex.N;
     }
 

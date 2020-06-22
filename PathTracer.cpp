@@ -106,6 +106,7 @@ Vector3f PathTrace(const Scene* scene, const Ray& ray, int& outBounces)
             }
         }
 #endif
+        break;
 
         Vector3f weight = 0;
         if (pdf_bsdf > 0.0f) {

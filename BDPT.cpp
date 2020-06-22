@@ -4,6 +4,16 @@
 #include "SampleHelperFunctions.hpp"
 #include "SceneRenderingHelper.hpp"
 
+#define CAMERA_ZERO_PDF (10000000000.0)    
+#define CAMERA_RAY_PDF (10.0)    
+//Notes here:
+//This is a magic number, indicating the PDF of a single ray coming out of camera.
+//Since there's always only exact 1 ray coming out of camera, this should be a dirac function.
+//But I'm not sure if this is correct. When I make it huge, it's closer to Path Tracing looking, but the caustic effect is not apparent.(Cause the s_n_t_0 path is less important according to MIS formula)  
+//And when it's less, the image is just not correct. I'm confused right now.
+
+//current value 10.0f is the one that I feel correct and low variance.  
+
 PTVertex PTVertex::Camera(Vector3f cameraPos) {
     PTVertex v;
 	v.type = PTVertex::Type::Camera;
@@ -30,14 +40,14 @@ PathVertex BDPTPath::GetVertex(int i) const {
 
 inline void BDPTPath::GenerateCameraPath(Ray cameraRay) {
     verts[0].vertex = PTVertex::Camera(cameraRay.origin);
-    verts[0].pdf = 1.0f;
-    verts[0].alpha = Vector3f::One();
+    verts[0].pdf = CAMERA_ZERO_PDF;
+    verts[0].alpha = 1.0f;
     verts[0].shadowed = false;
 
     verts[1].vertex = scene->Intersect(cameraRay);
     float distSqr;
     Vector3f atob = (verts[0].vertex.x - verts[1].vertex.x).NormlizeAndGetLengthSqr(&distSqr);
-    verts[1].pdf = abs(DotProduct(-atob, verts[1].vertex.N)) / (EPSILON + distSqr);
+    verts[1].pdf = SrpdfToAreaPdf(CAMERA_RAY_PDF, verts[0].vertex, verts[1].vertex);
     verts[1].alpha = Vector3f::One();
     verts[1].shadowed = false;
 
@@ -92,8 +102,7 @@ void BDPTPath::FillPathUsingRussianRoulette(int start) {
         Vector3f bsdf;
         verts[i + 1] = SampleNextVertex(scene, verts[i], w_o);
         
-        float rrProb = i > 4 ? RUSSIAN_ROULETTE : std::max(verts[i + 1].alpha.x, std::max(verts[i + 1].alpha.y, verts[i + 1].alpha.z));
-        rrProb = std::min(rrProb, 1.0f);
+        float rrProb = i > 4 ? .8f : 1.f;
         if (GetRandomFloat() > rrProb) {
             break;
         }
@@ -150,8 +159,8 @@ BDPTPath& BDPTPath::Append(PTVertex vertex, bool dontcheckshadow) {
         Vector3f alpha = SafeDivide(lastVertex.EvalBsdfOnSolidAngle(w_i), srpdf);
         editVertex.alpha = lastVertex.Throughput() * alpha;
 
-        float rrProb = count > 4 ? RUSSIAN_ROULETTE : std::max(alpha.x, std::max(alpha.y, alpha.z));
-        rrProb = std::min(rrProb, 1.0f);
+        float rrProb = count > 4 ? .8f : 1.f;
+        //rrProb = std::min(rrProb, 1.0f);
         editVertex.pdf *= rrProb;
         editVertex.alpha = SafeDivide(editVertex.alpha, rrProb);
     }
@@ -197,13 +206,12 @@ Vector3f BDPTPath::PathWeight(const BDPTPathView& lightPath, const BDPTPathView&
             return 0.0f;
         }
         auto lightLast = lightPath.Last(); auto camLast = camPath.Last();
-        float cosThetaCamera = camLast.index == 0 ? 1.0f : DotProduct(camLast.Normal(), -dir_ltoc);
         c_st =
             lightLast.EvalBsdfOnSolidAngle(dir_ltoc)
             * camLast.EvalBsdfOnSolidAngle(-dir_ltoc)
             * abs(
                 DotProduct(lightLast.Normal(), dir_ltoc)
-               * cosThetaCamera
+               * DotProduct(camLast.Normal(), -dir_ltoc)
                 / distSqr
                 );
     }
@@ -284,11 +292,12 @@ Vector3f BDPT(const Scene* scene, const Ray& ray, int& outBounces, Vector3f* emi
         for (int iLightPathLength = 0; iLightPathLength <= lightPath.count; iLightPathLength++) {
             if (iCamPathLength + iLightPathLength < 2)
                 continue;
-
+           // if (iLightPathLength != 1 || iCamPathLength != 1)
+            //    continue;
             auto lightSub = lightPath.Sub(iLightPathLength);
             auto pathWeight = BDPTPath::PathWeight(lightSub, camSub);
             pathWeight = Vector3f::Max(pathWeight, 0.0f);
-
+            pathWeight = pathWeight;
             if (camSub.count > 1) {
                 result += pathWeight;
             }
@@ -322,22 +331,22 @@ Vector3f PathVertex::EvalBsdfOnSolidAngle(Vector3f dir) {
 
 float PathVertex::EvalPdfOnSolidAngle(Vector3f dir) {
 	assert(Type() != PTVertex::Type::Background);
+    float cosine = abs(DotProduct(dir, Normal()));
 
 	if (Type() == PTVertex::Type::Light) {
-		return GetCosineWeightedPdf(Normal(), dir);
+		return SafeDivide(GetCosineWeightedPdf(Normal(), dir), cosine);
 	}
 	else if (Type() == PTVertex::Type::Camera) {
-		return 1.0f;
+        return  CAMERA_RAY_PDF;
 	}
 	else {
-		float cosine = abs(DotProduct(dir, Normal()));
 		if (cosine == 0.0f)
 			return 0.0f;
 		Vector3f wo = (Pre().Position() - Position()).Normalized();
-		return Material()->pdf(
+		return SafeDivide(Material()->pdf(
 			wo,
 			Normal(),
-			dir) / cosine;
+			dir), cosine);
 	}
 }
 
